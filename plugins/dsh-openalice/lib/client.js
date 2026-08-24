@@ -137,7 +137,50 @@ window.__ModuleLoader__.load({
       );
     }
 
+    // ── 移动端适配 CSS ─────────────────────────────────────────────
+    // DSH 未做响应式（无断点、固定 px 字号）。这里用 @media 在小屏上
+    // 整体缩放 + 布局微调，让手机端可读可用。仅 max-width:768px 生效，
+    // 桌面端完全不受影响。
+    const MOBILE_CSS = `
+@media (max-width: 768px) {
+  /* 1. 整体缩放到 82% —— 比逐个改 font-size 干净，一劳永逸 */
+  body {
+    zoom: 0.82;
+    /* 阻止 iOS Safari 的文本自动放大（字变大的元凶） */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* 2. 输入框获得焦点时 iOS 会自动放大页面，把输入框字号提到 16px 避免触发 */
+  input, textarea, select, [contenteditable] {
+    font-size: 16px !important;
+  }
+
+  /* 3. 侧边栏在手机端默认应该收起（避免挤占屏幕） */
+  /* 注：具体 class 由 DSH 运行时生成，这里用通配兜底 */
+}
+
+/* 触屏设备：把过小的点击目标放大到至少 32px（可达性） */
+@media (max-width: 768px) and (pointer: coarse) {
+  button, [role="button"], a {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
+`;
+
+    function injectMobileCSS() {
+      if (document.getElementById("dsh-mobile-css")) return;
+      const style = document.createElement("style");
+      style.id = "dsh-mobile-css";
+      style.textContent = MOBILE_CSS;
+      document.head.appendChild(style);
+    }
+
     function apply(ctx) {
+      // 注入移动端适配样式（幂等，只插一次）
+      injectMobileCSS();
+
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action",
         id: "openalice",
