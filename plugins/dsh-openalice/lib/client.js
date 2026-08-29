@@ -3,86 +3,84 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require("react");
 
-    let view = null;
-    let aliceLoadedOnce = false;
+    let open = false;
+    let loadedOnce = false;
     const listeners = new Set();
     const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
     const notify = () => { for (const l of listeners) l(); };
-    const setView = (v) => {
-      view = (view === v) ? null : v;
-      if (v === "openalice") aliceLoadedOnce = true;
+    const setOpen = (value) => {
+      open = value;
+      if (value) loadedOnce = true;
       notify();
     };
 
-    function useViewState() {
+    function useOpenState() {
       const [, redraw] = React.useState(0);
       React.useEffect(() => subscribe(() => redraw((x) => x + 1)), []);
-      return { view, aliceLoaded: aliceLoadedOnce };
+      return { open, loadedOnce };
     }
 
-    function makeSidebarButton({ icon, label, viewName }) {
-      return function SidebarButton({ wide }) {
-        const { view: active } = useViewState();
-        const activeNow = active === viewName;
-        return React.createElement("button", {
-          type: "button", title: label, "aria-label": label, "aria-pressed": activeNow,
-          onClick: () => setView(viewName),
-          style: {
-            display: "flex", alignItems: "center",
-            justifyContent: wide ? "flex-start" : "center",
-            gap: wide ? "8px" : "0", width: wide ? "100%" : "36px",
-            minHeight: "36px", padding: wide ? "0 10px" : "0",
-            border: "none", borderRadius: "8px",
-            background: activeNow ? "var(--dsw-alias-fill-active, rgba(255,255,255,.12))" : "transparent",
-            color: activeNow ? "var(--dsw-alias-label-primary, #f0f0f4)" : "var(--dsw-alias-label-secondary, rgba(240,240,244,.65))",
-            cursor: "pointer", font: "inherit", fontSize: "13px", transition: "background 150ms",
-          },
-          onMouseEnter: (e) => { if (!activeNow) e.currentTarget.style.background = "var(--dsw-alias-fill-hover, rgba(255,255,255,.07))"; },
-          onMouseLeave: (e) => { if (!activeNow) e.currentTarget.style.background = "transparent"; },
+    // ── Sidebar entry ────────────────────────────────────────────────
+    function OpenAliceSidebarEntry({ wide }) {
+      const { open: active } = useOpenState();
+      return React.createElement("button", {
+        type: "button",
+        title: "OpenAlice \u5DE5\u4F5C\u53F0",
+        "aria-label": "OpenAlice \u5DE5\u4F5C\u53F0",
+        "aria-pressed": active,
+        onClick: () => setOpen(!active),
+        style: {
+          display: "flex", alignItems: "center",
+          justifyContent: wide ? "flex-start" : "center",
+          gap: wide ? "8px" : "0", width: wide ? "100%" : "36px",
+          minHeight: "36px", padding: wide ? "0 10px" : "0",
+          border: "none", borderRadius: "8px",
+          background: active ? "var(--dsw-alias-fill-active, rgba(255,255,255,.12))" : "transparent",
+          color: active ? "var(--dsw-alias-label-primary, #f0f0f4)" : "var(--dsw-alias-label-secondary, rgba(240,240,244,.65))",
+          cursor: "pointer", font: "inherit", fontSize: "13px", transition: "background 150ms",
         },
-          React.createElement("span", { "aria-hidden": true, style: { fontSize: "16px", lineHeight: 1, flex: "none" } }, icon),
-          wide && React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, label),
-        );
-      };
+        onMouseEnter: (e) => { if (!active) e.currentTarget.style.background = "var(--dsw-alias-fill-hover, rgba(255,255,255,.07))"; },
+        onMouseLeave: (e) => { if (!active) e.currentTarget.style.background = "transparent"; },
+      },
+        React.createElement("span", { "aria-hidden": true, style: { fontSize: "16px", lineHeight: 1, flex: "none" } }, "\u25C8"),
+        wide && React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, "OpenAlice"),
+      );
     }
 
-    function RootPanel() {
-      const { view: active, aliceLoaded } = useViewState();
-      if (active === null && !aliceLoaded) return null;
-      const title = active === "openalice" ? "OpenAlice 工作台" : (active === "opencli" ? "OpenCLI 架构图" : "");
+    // ── Details panel (iframe) ───────────────────────────────────────
+    function OpenAlicePanel() {
+      const { open: active, loadedOnce: shouldMount } = useOpenState();
+      if (!shouldMount) return null;
+
       return React.createElement("div", {
         style: {
-          position: "absolute", inset: "0", zIndex: 10,
-          display: active !== null ? "flex" : "none",
+          width: "100%", height: "100%",
+          display: active ? "flex" : "none",
           flexDirection: "column",
           background: "var(--dsw-alias-bg-base, #111118)",
-          pointerEvents: active !== null ? "auto" : "none",
+          overflow: "hidden",
         },
       },
         React.createElement("div", {
-          style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", flex: "none", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(255,255,255,.1))", background: "var(--dsw-alias-bg-elevated, rgba(20,20,28,.9))" },
+          style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", flex: "0 0 auto", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(255,255,255,.1))", background: "var(--dsw-alias-bg-elevated, rgba(20,20,28,.9))" },
         },
           React.createElement("button", {
             type: "button",
-            onClick: () => setView(active),
+            onClick: () => setOpen(false),
             style: { display: "inline-flex", alignItems: "center", gap: "6px", border: "1px solid var(--dsw-alias-border-l2, rgba(255,255,255,.2))", borderRadius: "6px", padding: "4px 10px", background: "transparent", color: "var(--dsw-alias-label-primary, #f0f0f4)", cursor: "pointer", font: "inherit", fontSize: "12px" },
-          }, "\u2190 返回 DSH"),
-          React.createElement("span", { style: { fontSize: "12px", color: "var(--dsw-alias-label-secondary, rgba(240,240,244,.6))" } }, title),
+          }, "\u2190 \u8FD4\u56DE DSH"),
+          React.createElement("span", { style: { fontSize: "12px", color: "var(--dsw-alias-label-secondary, rgba(240,240,244,.6))" } }, "OpenAlice \u5DE5\u4F5C\u53F0"),
         ),
-        aliceLoaded ? React.createElement("iframe", {
+        React.createElement("iframe", {
           title: "OpenAlice",
           src: "http://localhost:5173/",
-          style: { width: "100%", height: "100%", border: "0", flex: "1", display: active === "openalice" ? "block" : "none" },
+          style: { width: "100%", flex: "1 1 0", minHeight: "0", border: "0" },
           allow: "clipboard-read; clipboard-write",
-        }) : null,
-        React.createElement("iframe", {
-          title: "OpenCLI 架构",
-          src: "http://localhost:5173/opencli.html",
-          style: { width: "100%", height: "100%", border: "0", flex: "1", display: active === "opencli" ? "block" : "none" },
         }),
       );
     }
 
+    // ── Mobile CSS ─────────────────────────────────────────────────
     const MOBILE_CSS = [
       "@media (max-width: 768px) {",
       "  body { zoom: 0.82; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }",
@@ -101,7 +99,7 @@ window.__ModuleLoader__.load({
       document.head.appendChild(style);
     }
 
-    // ── 图片点击放大（Lightbox）──────────────────────────────────
+    // ── Lightbox ───────────────────────────────────────────────────
     function injectLightbox() {
       if (document.getElementById("dsh-lightbox-css")) return;
       const css = [
@@ -110,29 +108,20 @@ window.__ModuleLoader__.load({
         "  background: rgba(0,0,0,.85);",
         "  display: flex; align-items: center; justify-content: center;",
         "  cursor: zoom-out; padding: 16px;",
-        "  animation: dsh-lb-fade .15s ease;",
         "}",
         ".dsh-lightbox-overlay img {",
         "  max-width: 95vw; max-height: 95vh;",
         "  object-fit: contain; border-radius: 8px;",
-        "  box-shadow: 0 4px 40px rgba(0,0,0,.5);",
-        "  animation: dsh-lb-pop .2s ease;",
         "}",
-        "@keyframes dsh-lb-fade { from { opacity: 0 } to { opacity: 1 } }",
-        "@keyframes dsh-lb-pop { from { transform: scale(.92); opacity: 0 } to { transform: scale(1); opacity: 1 } }",
-        "/* 对话里的图片加 zoom-in 光标 */",
         ".dsw-chat img, [class*=message] img, [class*=markdown] img { cursor: zoom-in; }",
       ].join("\n");
       const style = document.createElement("style");
       style.id = "dsh-lightbox-css";
       style.textContent = css;
       document.head.appendChild(style);
-
-      // 事件委托：点击任何 img 都打开 lightbox
       document.addEventListener("click", (e) => {
         const img = e.target;
         if (img.tagName !== "IMG") return;
-        // 排除 sidebar 图标等小图
         if (img.naturalWidth < 80 && img.naturalHeight < 80) return;
         e.preventDefault();
         e.stopPropagation();
@@ -152,13 +141,10 @@ window.__ModuleLoader__.load({
       injectLightbox();
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action", id: "openalice", order: 100,
-      }, makeSidebarButton({ icon: "\u25C8", label: "OpenAlice", viewName: "openalice" })));
-      ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
-        name: "sidebar.footer.action", id: "opencli-arch", order: 101,
-      }, makeSidebarButton({ icon: "\u25CE", label: "OpenCLI", viewName: "opencli" })));
+      }, OpenAliceSidebarEntry));
       ctx.slots.inject("details", () => ctx.slots.register({
         name: "details", id: "openalice", priority: -1,
-      }, RootPanel));
+      }, OpenAlicePanel));
     }
 
     return { apply, inject: ["slots"] };
