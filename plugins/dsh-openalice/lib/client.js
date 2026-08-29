@@ -73,7 +73,7 @@ window.__ModuleLoader__.load({
         ),
         React.createElement("iframe", {
           title: "OpenAlice",
-          src: "https://64.83.17.49:8091/",
+          src: "http://localhost:5173/",
           style: { width: "100%", flex: "1 1 0", minHeight: "0", border: "0" },
           allow: "clipboard-read; clipboard-write",
         }),
