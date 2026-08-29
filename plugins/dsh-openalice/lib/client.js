@@ -96,8 +96,55 @@ window.__ModuleLoader__.load({
       document.head.appendChild(style);
     }
 
+    // ── 图片点击放大（Lightbox）──────────────────────────────────
+    function injectLightbox() {
+      if (document.getElementById("dsh-lightbox-css")) return;
+      const css = [
+        ".dsh-lightbox-overlay {",
+        "  position: fixed; inset: 0; z-index: 99999;",
+        "  background: rgba(0,0,0,.85);",
+        "  display: flex; align-items: center; justify-content: center;",
+        "  cursor: zoom-out; padding: 16px;",
+        "  animation: dsh-lb-fade .15s ease;",
+        "}",
+        ".dsh-lightbox-overlay img {",
+        "  max-width: 95vw; max-height: 95vh;",
+        "  object-fit: contain; border-radius: 8px;",
+        "  box-shadow: 0 4px 40px rgba(0,0,0,.5);",
+        "  animation: dsh-lb-pop .2s ease;",
+        "}",
+        "@keyframes dsh-lb-fade { from { opacity: 0 } to { opacity: 1 } }",
+        "@keyframes dsh-lb-pop { from { transform: scale(.92); opacity: 0 } to { transform: scale(1); opacity: 1 } }",
+        "/* 对话里的图片加 zoom-in 光标 */",
+        ".dsw-chat img, [class*=message] img, [class*=markdown] img { cursor: zoom-in; }",
+      ].join("\n");
+      const style = document.createElement("style");
+      style.id = "dsh-lightbox-css";
+      style.textContent = css;
+      document.head.appendChild(style);
+
+      // 事件委托：点击任何 img 都打开 lightbox
+      document.addEventListener("click", (e) => {
+        const img = e.target;
+        if (img.tagName !== "IMG") return;
+        // 排除 sidebar 图标等小图
+        if (img.naturalWidth < 80 && img.naturalHeight < 80) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const overlay = document.createElement("div");
+        overlay.className = "dsh-lightbox-overlay";
+        const big = document.createElement("img");
+        big.src = img.src;
+        big.alt = img.alt || "";
+        overlay.appendChild(big);
+        overlay.addEventListener("click", () => overlay.remove());
+        document.body.appendChild(overlay);
+      });
+    }
+
     function apply(ctx) {
       injectMobileCSS();
+      injectLightbox();
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action", id: "openalice", order: 100,
       }, makeSidebarButton({ icon: "\u25C8", label: "OpenAlice", viewName: "openalice" })));
