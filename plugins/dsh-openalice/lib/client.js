@@ -49,7 +49,7 @@ window.__ModuleLoader__.load({
     function RootPanel() {
       const { view: active, aliceLoaded } = useViewState();
       if (active === null && !aliceLoaded) return null;
-      const title = active === "openalice" ? "OpenAlice 工作台" : "";
+      const title = active === "openalice" ? "OpenAlice 工作台" : (active === "opencli" ? "OpenCLI 架构图" : "");
       return React.createElement("div", {
         style: {
           position: "absolute", inset: "0", zIndex: 10,
@@ -75,6 +75,11 @@ window.__ModuleLoader__.load({
           style: { width: "100%", height: "100%", border: "0", flex: "1", display: active === "openalice" ? "block" : "none" },
           allow: "clipboard-read; clipboard-write",
         }) : null,
+        React.createElement("iframe", {
+          title: "OpenCLI 架构",
+          src: "http://localhost:5173/opencli.html",
+          style: { width: "100%", height: "100%", border: "0", flex: "1", display: active === "opencli" ? "block" : "none" },
+        }),
       );
     }
 
@@ -148,6 +153,9 @@ window.__ModuleLoader__.load({
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action", id: "openalice", order: 100,
       }, makeSidebarButton({ icon: "\u25C8", label: "OpenAlice", viewName: "openalice" })));
+      ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
+        name: "sidebar.footer.action", id: "opencli-arch", order: 101,
+      }, makeSidebarButton({ icon: "\u25CE", label: "OpenCLI", viewName: "opencli" })));
       ctx.slots.inject("details", () => ctx.slots.register({
         name: "details", id: "openalice", priority: -1,
       }, RootPanel));
