@@ -7,11 +7,12 @@ window.__ModuleLoader__.load({
     let overlayEl = null;
 
     function closeOverlay() {
-      if (overlayEl) { overlayEl.remove(); overlayEl = null; }
+      // 只隐藏不销毁 —— iframe 保持加载状态，下次打开秒显
+      if (overlayEl) { overlayEl.style.display = "none"; }
     }
 
     function openOverlay() {
-      if (overlayEl) return;
+      if (overlayEl) { overlayEl.style.display = "flex"; return; }
       const root = document.createElement("div");
       root.style.cssText = "position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;background:#111118;";
 
@@ -42,8 +43,16 @@ window.__ModuleLoader__.load({
       overlayEl = root;
     }
 
+    // iframe 预加载：页面加载后就建好 overlay 并隐藏，点开秒显
+    function preloadOverlay() {
+      if (overlayEl) return;
+      openOverlay();
+      overlayEl.style.display = "none";
+    }
+
     function toggleOverlay() {
-      if (overlayEl) closeOverlay(); else openOverlay();
+      if (overlayEl && overlayEl.style.display !== "none") closeOverlay();
+      else openOverlay();
     }
 
     // ── Sidebar entry ────────────────────────────────────────────────
@@ -130,6 +139,8 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       injectMobileCSS();
       injectLightbox();
+      // 页面加载后延迟预建 OpenAlice iframe（隐藏状态），首次点开秒显
+      setTimeout(preloadOverlay, 1500);
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action", id: "openalice", order: 100,
       }, OpenAliceSidebarEntry));
