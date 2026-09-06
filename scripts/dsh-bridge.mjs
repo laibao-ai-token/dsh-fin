@@ -114,6 +114,7 @@ function parseArgs(argv) {
       case '--prompt-stdin': opts.promptStdin = true; break
       case '--session-id': opts.sessionId = next(); break
       case '--resume': opts.sessionId = next(); break
+      case '--seed': opts.seed = next(); break
       case '--new-session': opts.fresh = true; break
       case '--continue': opts.continueLast = true; break
       case '--json': opts.json = true; break
@@ -577,6 +578,25 @@ async function main() {
 
   const promptMarker = () => { if (tty) process.stderr.write('you> ') }
   promptMarker()
+  // Launcher seed (--seed): submit the first user message automatically right
+  // after the session resolves, then fall into the normal REPL. This is how a
+  // quick-chat seed reaches an INTERACTIVE session (unlike --prompt, which is
+  // a headless one-shot that exits at the turn boundary). The turn runs in the
+  // background so the REPL keeps reading stdin while the model works.
+  if (opts.seed) {
+    // Launcher seed with a compact environment briefing so the agent knows
+    // its workspace context and available tooling without any injection.
+    const toolUrl = opts.dshUrl.replace(/:\d+$/, '')
+    const envNote = [
+      '[workspace] cwd=' + process.cwd(),
+      '[persona] AGENTS.md in this dir defines your role - read it first.',
+      '[tools] opencli is on PATH (site/data adapters).',
+      '[alice-shims] export OPENALICE_TOOL_URL=' + toolUrl + '/cli ; export AQ_WS_ID=<session record id>',
+    ].join('\n')
+    const seedText = envNote + '\n\n---\n\n' + opts.seed
+    promptWithRecovery(client, writers, state, seedText, opts, true)
+      .catch((error) => writers.note('[dsh-bridge] ' + error.message))
+  }
   for await (const line of rl) {
     const text = line.trim()
     if (!text) { promptMarker(); continue }
