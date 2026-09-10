@@ -136,6 +136,129 @@ window.__ModuleLoader__.load({
       });
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // ── 图片发送（shadow 官方 conversation.input.attachments 插槽）──
+    //   官方插槽只支持"拖拽/粘贴"，没有选图按钮；手机上无法添加图片。
+    //   这里以更低 priority 覆盖它，保留 onAddImages 原生流程
+    //   （DSH 会校验格式/大小并 toast 错误），额外提供：
+    //     · "添加图片"按钮 → 文件选择（移动端唤起相册/拍照）
+    //     · 已选图片缩略条（可删除、可点开看大图）
+    //     · 桌面拖拽支持
+    // ════════════════════════════════════════════════════════════════
+    function DshImageComposerAttachments({ attachments = [], canAcceptDrop, onAddImages, onRemoveImage }) {
+      const inputRef = React.useRef(null);
+
+      React.useEffect(() => {
+        const fileTransfer = (event) => {
+          const dt = event.dataTransfer;
+          if (dt === null || !dt.types || !dt.types.includes("Files")) return null;
+          return dt;
+        };
+        const onDragOver = (event) => {
+          if (fileTransfer(event) === null) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = canAcceptDrop ? "copy" : "none";
+        };
+        const onDrop = (event) => {
+          const dt = fileTransfer(event);
+          if (dt === null) return;
+          event.preventDefault();
+          if (canAcceptDrop && typeof onAddImages === "function") {
+            onAddImages(Array.from(dt.files || []));
+          }
+        };
+        document.addEventListener("dragover", onDragOver);
+        document.addEventListener("drop", onDrop);
+        return () => {
+          document.removeEventListener("dragover", onDragOver);
+          document.removeEventListener("drop", onDrop);
+        };
+      }, [canAcceptDrop, onAddImages]);
+
+      const pickImages = () => {
+        if (inputRef.current) inputRef.current.click();
+      };
+
+      const onFileChange = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0 && typeof onAddImages === "function") onAddImages(files);
+        // 清空以便重复选择同一文件
+        e.target.value = "";
+      };
+
+      const hasImages = Array.isArray(attachments) && attachments.length > 0;
+
+      return React.createElement("div", {
+        style: {
+          display: "flex", alignItems: "center", gap: "8px",
+          flexWrap: "wrap", padding: "8px 14px 0",
+        },
+      },
+        React.createElement("input", {
+          ref: inputRef,
+          type: "file",
+          accept: "image/*",
+          multiple: true,
+          style: { display: "none" },
+          onChange: onFileChange,
+        }),
+        React.createElement("button", {
+          type: "button",
+          "aria-label": "添加图片",
+          title: "添加图片（相册/拍照/文件）",
+          onClick: pickImages,
+          style: {
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            height: "32px", padding: "0 12px",
+            border: "1px solid var(--dsw-alias-border-l2-darkmode-thin, rgba(255,255,255,.14))",
+            borderRadius: "999px",
+            background: "var(--dsw-alias-interactive-bg-hover, rgba(255,255,255,.06))",
+            color: "var(--dsw-alias-label-primary, #ececf1)",
+            cursor: "pointer", font: "inherit", fontSize: "13px",
+            transition: "background 150ms",
+          },
+          onMouseEnter: (e) => { e.currentTarget.style.background = "var(--dsw-alias-interactive-bg-hover-solid, rgba(255,255,255,.12))"; },
+          onMouseLeave: (e) => { e.currentTarget.style.background = "var(--dsw-alias-interactive-bg-hover, rgba(255,255,255,.06))"; },
+        },
+          React.createElement("span", { "aria-hidden": true, style: { fontSize: "14px", lineHeight: 1 } }, "📷"),
+          React.createElement("span", null, "添加图片"),
+        ),
+        hasImages && attachments.map((attachment) => {
+          const thumb = React.createElement("img", {
+            src: attachment.previewUrl,
+            alt: attachment.file && attachment.file.name ? attachment.file.name : "图片",
+            style: {
+              width: "44px", height: "44px", objectFit: "cover",
+              borderRadius: "8px", border: "1px solid rgba(255,255,255,.12)",
+              display: "block", cursor: "zoom-in",
+            },
+          });
+          return React.createElement("div", {
+            key: attachment.id,
+            style: { position: "relative", flex: "none" },
+          },
+            thumb,
+            React.createElement("button", {
+              type: "button",
+              "aria-label": "移除图片",
+              title: "移除图片",
+              onClick: () => {
+                if (typeof onRemoveImage === "function") onRemoveImage(attachment.id);
+              },
+              style: {
+                position: "absolute", top: "-6px", right: "-6px",
+                width: "18px", height: "18px", padding: "0",
+                border: "1px solid rgba(0,0,0,.4)", borderRadius: "50%",
+                background: "rgba(20,20,28,.9)", color: "#fff",
+                fontSize: "10px", lineHeight: "1", cursor: "pointer",
+                display: "grid", placeItems: "center",
+              },
+            }, "✕"),
+          );
+        }),
+      );
+    }
+
     function apply(ctx) {
       injectMobileCSS();
       injectLightbox();
@@ -144,6 +267,12 @@ window.__ModuleLoader__.load({
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action", id: "openalice", order: 100,
       }, OpenAliceSidebarEntry));
+      // 覆盖输入栏附件插槽：priority -1 低于官方的 0，shadow 胜出
+      ctx.slots.inject("conversation.composer.bar", () => ctx.slots.register({
+        name: "conversation.input.attachments",
+        id: "dsh-openalice-image-button",
+        priority: -1,
+      }, DshImageComposerAttachments));
     }
 
     return { apply, inject: ["slots"] };
